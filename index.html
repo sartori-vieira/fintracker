@@ -414,19 +414,50 @@ async function authSubmit(){
 function showMsg(t,type){const el=document.getElementById('auth-msg');el.className='msg msg-'+type;el.textContent=t;}
 async function logout(){await sb.auth.signOut();}
 
-sb.auth.onAuthStateChange(async(_,session)=>{
+// Controla se initApp já foi chamado nessa sessão para não duplicar
+let appInitialized = false;
+
+function showApp(user) {
+  currentUser = user;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('main-nav').style.display = 'flex';
+  document.getElementById('user-avatar').textContent = (user.email||'?')[0].toUpperCase();
+}
+
+function showAuth() {
+  currentUser = null;
+  appInitialized = false;
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('main-nav').style.display = 'none';
+}
+
+// Tenta restaurar sessão existente ANTES de registrar o listener
+// Isso resolve o problema de sessão restaurada sem disparar onAuthStateChange
+(async () => {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
+      showApp(session.user);
+      appInitialized = true;
+      await initApp();
+    }
+  } catch(e) {
+    console.warn('getSession erro:', e);
+  }
+})();
+
+sb.auth.onAuthStateChange(async(event, session)=>{
   if(session?.user){
-    currentUser=session.user;
-    document.getElementById('auth-screen').style.display='none';
-    document.getElementById('main-app').style.display='block';
-    document.getElementById('main-nav').style.display='flex';
-    document.getElementById('user-avatar').textContent=(session.user.email||'?')[0].toUpperCase();
-    await initApp();
+    showApp(session.user);
+    // Só chama initApp se ainda não foi inicializado (evita duplo carregamento)
+    if(!appInitialized){
+      appInitialized = true;
+      await initApp();
+    }
   }else{
-    currentUser=null;
-    document.getElementById('auth-screen').style.display='flex';
-    document.getElementById('main-app').style.display='none';
-    document.getElementById('main-nav').style.display='none';
+    showAuth();
   }
 });
 
