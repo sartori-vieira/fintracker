@@ -432,26 +432,41 @@ sb.auth.onAuthStateChange(async(_,session)=>{
 
 // INIT
 async function initApp(){
-  await loadConfig();
-  await loadMetas();
+  try {
+    await loadConfig();
+  } catch(e){ console.warn('loadConfig erro:', e); }
+  try {
+    await loadMetas();
+  } catch(e){ console.warn('loadMetas erro:', e); }
   renderMesChips();
   renderCats();
   renderConfigForm();
-  await renderGastos();
-  await renderMetasList();
-  document.getElementById('g-data').valueAsDate=new Date();
-  // Set current month chip
+  // Define mês atual como padrão
   const hoje=new Date();
   const mesAtual=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0');
   const mesValido=MESES.find(m=>m.val===mesAtual);
-  if(mesValido)curMesTracker=mesAtual;
+  if(mesValido) curMesTracker=mesAtual;
   renderMesChips();
+  try {
+    await renderGastos();
+  } catch(e){ console.warn('renderGastos erro:', e); }
+  try {
+    await renderMetasList();
+  } catch(e){ console.warn('renderMetasList erro:', e); }
+  document.getElementById('g-data').valueAsDate=new Date();
 }
 
 // CONFIG
 async function loadConfig(){
-  const{data}=await sb.from('config_usuario').select('*').eq('user_id',currentUser.id).single();
-  userConfig=data||{...LIMITES_DEFAULT,aporte_imovel:IMOVEL_PADRAO,aporte_mba:MBA_PADRAO,mes_inicio_mba:'2026-08',receita_base:5994};
+  try{
+    const{data,error}=await sb.from('config_usuario').select('*').eq('user_id',currentUser.id).maybeSingle();
+    if(error)throw error;
+    userConfig=data||{...LIMITES_DEFAULT,aporte_imovel:IMOVEL_PADRAO,aporte_mba:MBA_PADRAO,mes_inicio_mba:'2026-08',receita_base:5994};
+    console.log('Config carregada:', userConfig);
+  }catch(e){
+    console.error('loadConfig erro:', e);
+    userConfig={...LIMITES_DEFAULT,aporte_imovel:IMOVEL_PADRAO,aporte_mba:MBA_PADRAO,mes_inicio_mba:'2026-08',receita_base:5994};
+  }
 }
 function getLimite(cat){return userConfig?.['limite_'+cat]??LIMITES_DEFAULT[cat]??200;}
 function getImovel(){return userConfig?.aporte_imovel??IMOVEL_PADRAO;}
@@ -510,7 +525,7 @@ function setMesMetas(val,btn){curMesMetas=val;document.querySelectorAll('#mes-ro
 
 // RECEITA
 async function loadReceitaMes(){
-  const{data}=await sb.from('receita_mensal').select('*').eq('user_id',currentUser.id).eq('mes',curMesTracker).single();
+  const{data}=await sb.from('receita_mensal').select('*').eq('user_id',currentUser.id).eq('mes',curMesTracker).maybeSingle();
   document.getElementById('r-salario').value=data?.salario||'';
   document.getElementById('r-vr').value=data?.vale_refeicao||'';
   document.getElementById('r-extras').value=data?.extras||'';
@@ -564,10 +579,15 @@ async function deleteGasto(id){
 }
 async function renderGastos(){
   document.getElementById('tracker-livre-badge').style.display=isLivre(curMesTracker)?'block':'none';
-  const{data:gastos}=await sb.from('gastos').select('*').eq('user_id',currentUser.id).eq('mes',curMesTracker).order('data',{ascending:false});
-  document.getElementById('gastos-count').textContent=gastos?.length?`(${gastos.length})`:'';
+  let gastos=[];
+  try{
+    const{data,error}=await sb.from('gastos').select('*').eq('user_id',currentUser.id).eq('mes',curMesTracker).order('data',{ascending:false});
+    if(error)throw error;
+    gastos=data||[];
+  }catch(e){console.error('renderGastos:',e);}
+  document.getElementById('gastos-count').textContent=gastos.length?`(${gastos.length})`:'';
   const el=document.getElementById('gastos-list');
-  if(!gastos?.length){el.innerHTML='<div class="empty"><div class="empty-icon">🧾</div>Nenhum gasto ainda.</div>';return;}
+  if(!gastos.length){el.innerHTML='<div class="empty"><div class="empty-icon">🧾</div>Nenhum gasto ainda.</div>';return;}
   const total=gastos.reduce((a,g)=>a+Number(g.valor),0);
   el.innerHTML=`<div style="display:flex;justify-content:space-between;padding:8px 0 10px;font-size:12px;color:var(--muted);border-bottom:0.5px solid var(--border);margin-bottom:2px"><span>Total do mês</span><span class="value-sm" style="color:var(--red)">${fmt(total)}</span></div>`+
   gastos.map(g=>{
@@ -585,12 +605,17 @@ async function renderGastos(){
 
 // METAS
 async function loadMetas(){
-  const{data}=await sb.from('metas').select('*').eq('user_id',currentUser.id).eq('ativa',true).order('ordem');
-  userMetas=data||[];
+  try{
+    const{data,error}=await sb.from('metas').select('*').eq('user_id',currentUser.id).eq('ativa',true).order('ordem');
+    if(error)throw error;
+    userMetas=data||[];
+  }catch(e){console.error('loadMetas:',e);userMetas=[];}
 }
 async function renderMetasList(){
   await loadMetas();
+  console.log('Metas carregadas:', userMetas.length, userMetas);
   const el=document.getElementById('metas-list');
+  if(!el)return;
   if(!userMetas.length){
     el.innerHTML='<div class="empty"><div class="empty-icon">🎯</div>Nenhuma meta ainda.<br>Crie sua primeira meta acima.</div>';
     populateAporteSel();return;
@@ -709,7 +734,7 @@ async function renderResumo(){
   if(isLivre(curMesResumo)){el.innerHTML='<div class="alert alert-amber">Abril é mês livre — sem objetivos para comparar. Mas os gastos estão sendo registrados.</div><div id="resumo-gastos-abril"></div>';await renderGastosApril();return;}
   const[{data:gastos},{data:rec}]=await Promise.all([
     sb.from('gastos').select('*').eq('user_id',currentUser.id).eq('mes',curMesResumo),
-    sb.from('receita_mensal').select('*').eq('user_id',currentUser.id).eq('mes',curMesResumo).single()
+    sb.from('receita_mensal').select('*').eq('user_id',currentUser.id).eq('mes',curMesResumo).maybeSingle()
   ]);
   const isMba=curMesResumo>=(userConfig?.mes_inicio_mba??'2026-08');
   const receitaReal=rec?(rec.salario+rec.vale_refeicao+rec.extras):getReceita();
