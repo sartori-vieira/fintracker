@@ -828,17 +828,18 @@ async function renderRadiografia(){
   const catComGasto=CATS_DEFAULT.filter(c=>porCat[c.id]>0);
   if(chartCat){chartCat.destroy();chartCat=null;}
   const canvasCat=document.getElementById('chart-cat');
-  if(!canvasCat){console.warn('canvas chart-cat não encontrado');return;}
-  if(catComGasto.length){
-    try{
-      chartCat=new Chart(canvasCat.getContext('2d'),{
-        type:'doughnut',
-        data:{labels:catComGasto.map(c=>c.name),datasets:[{data:catComGasto.map(c=>porCat[c.id]),backgroundColor:catComGasto.map(c=>c.color+'cc'),borderColor:catComGasto.map(c=>c.color),borderWidth:1}]},
-        options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#8a8a9a',font:{size:10,family:'Sora'},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.raw)}`}}}}
-      });
-    }catch(e){console.error('chart-cat erro:',e);}
-  } else if(canvasCat.parentElement) {
-    canvasCat.parentElement.innerHTML='<div class="empty" style="padding:1rem">Nenhum gasto neste mês.</div>';
+  if(!canvasCat){console.warn('canvas chart-cat não encontrado');}else{
+    if(catComGasto.length){
+      try{
+        chartCat=new Chart(canvasCat.getContext('2d'),{
+          type:'doughnut',
+          data:{labels:catComGasto.map(c=>c.name),datasets:[{data:catComGasto.map(c=>porCat[c.id]),backgroundColor:catComGasto.map(c=>c.color+'cc'),borderColor:catComGasto.map(c=>c.color),borderWidth:1}]},
+          options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#8a8a9a',font:{size:10,family:'Sora'},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.raw)}`}}}}
+        });
+      }catch(e){console.error('chart-cat erro:',e);}
+    } else if(canvasCat.parentElement) {
+      canvasCat.parentElement.innerHTML='<div class="empty" style="padding:1rem">Nenhum gasto neste mês.</div>';
+    }
   }
 
   // Histórico
