@@ -216,7 +216,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <!-- APP -->
 <div id="main-app" style="display:none">
   <div class="header">
-    <div class="header-logo">Fin<span>Tracker</span></div>
+    <div class="header-logo">Fin<span>Tracker</span> <span id="app-ver" style="font-size:9px;font-weight:400;color:var(--hint);letter-spacing:.05em;vertical-align:middle"></span></div>
     <div style="display:flex;align-items:center;gap:8px">
       <div class="avatar" id="user-avatar">?</div>
       <button class="logout-btn" onclick="logout()">Sair</button>
@@ -360,9 +360,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 const SUPABASE_URL='https://jgemtxvxgjdqgtnzwzal.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZW10eHZ4Z2pkcWd0bnp3emFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTkzMzIsImV4cCI6MjA5MjI5NTMzMn0.1AQ3lW6EK1xSv5Bam7frjJ73Z9KaheykiiHUb0XX67A';
 const{createClient}=supabase;
+const APP_VERSION = '1.4.0';
+const APP_DATE    = '2026-04-23';
+
 const sb=createClient(SUPABASE_URL,SUPABASE_KEY,{
   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
 });
+
+console.log('%c FinTracker v'+APP_VERSION+' ('+APP_DATE+') ', 'background:#22c98a;color:#0a1a12;font-weight:600;border-radius:4px;padding:2px 6px;');
 
 // CONFIG PADRÃO
 const CATS_DEFAULT=[
@@ -415,6 +420,11 @@ async function authSubmit(){
 }
 function showMsg(t,type){const el=document.getElementById('auth-msg');el.className='msg msg-'+type;el.textContent=t;}
 async function logout(){await sb.auth.signOut();}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const el=document.getElementById('app-ver');
+  if(el) el.textContent='v'+APP_VERSION;
+});
 
 sb.auth.onAuthStateChange(async(event, session)=>{
   if(session?.user){
