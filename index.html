@@ -360,7 +360,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 const SUPABASE_URL='https://jgemtxvxgjdqgtnzwzal.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZW10eHZ4Z2pkcWd0bnp3emFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTkzMzIsImV4cCI6MjA5MjI5NTMzMn0.1AQ3lW6EK1xSv5Bam7frjJ73Z9KaheykiiHUb0XX67A';
 const{createClient}=supabase;
-const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
+const sb=createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
+});
 
 // CONFIG PADRÃO
 const CATS_DEFAULT=[
@@ -414,50 +416,19 @@ async function authSubmit(){
 function showMsg(t,type){const el=document.getElementById('auth-msg');el.className='msg msg-'+type;el.textContent=t;}
 async function logout(){await sb.auth.signOut();}
 
-// Controla se initApp já foi chamado nessa sessão para não duplicar
-let appInitialized = false;
-
-function showApp(user) {
-  currentUser = user;
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('main-app').style.display = 'block';
-  document.getElementById('main-nav').style.display = 'flex';
-  document.getElementById('user-avatar').textContent = (user.email||'?')[0].toUpperCase();
-}
-
-function showAuth() {
-  currentUser = null;
-  appInitialized = false;
-  document.getElementById('auth-screen').style.display = 'flex';
-  document.getElementById('main-app').style.display = 'none';
-  document.getElementById('main-nav').style.display = 'none';
-}
-
-// Tenta restaurar sessão existente ANTES de registrar o listener
-// Isso resolve o problema de sessão restaurada sem disparar onAuthStateChange
-(async () => {
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session?.user) {
-      showApp(session.user);
-      appInitialized = true;
-      await initApp();
-    }
-  } catch(e) {
-    console.warn('getSession erro:', e);
-  }
-})();
-
 sb.auth.onAuthStateChange(async(event, session)=>{
   if(session?.user){
-    showApp(session.user);
-    // Só chama initApp se ainda não foi inicializado (evita duplo carregamento)
-    if(!appInitialized){
-      appInitialized = true;
-      await initApp();
-    }
+    currentUser=session.user;
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('main-app').style.display='block';
+    document.getElementById('main-nav').style.display='flex';
+    document.getElementById('user-avatar').textContent=(session.user.email||'?')[0].toUpperCase();
+    await initApp();
   }else{
-    showAuth();
+    currentUser=null;
+    document.getElementById('auth-screen').style.display='flex';
+    document.getElementById('main-app').style.display='none';
+    document.getElementById('main-nav').style.display='none';
   }
 });
 
